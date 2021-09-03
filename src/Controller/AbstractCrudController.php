@@ -238,25 +238,7 @@ abstract class AbstractCrudController extends AbstractController implements Crud
 
             $this->get('event_dispatcher')->dispatch(new AfterEntityUpdatedEvent($entityInstance));
 
-            $submitButtonName = $context->getRequest()->request->all()['ea']['newForm']['btn'];
-            if (Action::SAVE_AND_CONTINUE === $submitButtonName) {
-                $url = $this->get(AdminUrlGenerator::class)
-                    ->setAction(Action::EDIT)
-                    ->setEntityId($context->getEntity()->getPrimaryKeyValue())
-                    ->generateUrl();
-
-                return $this->redirect($url);
-            }
-
-            if (Action::SAVE_AND_RETURN === $submitButtonName) {
-                $url = empty($context->getReferrer())
-                    ? $this->get(AdminUrlGenerator::class)->setAction(Action::INDEX)->generateUrl()
-                    : $context->getReferrer();
-
-                return $this->redirect($url);
-            }
-
-            return $this->redirectToRoute($context->getDashboardRouteName());
+            return $this->editResponse($context);
         }
 
         $responseParameters = $this->configureResponseParameters(KeyValueStore::new([
@@ -313,30 +295,7 @@ abstract class AbstractCrudController extends AbstractController implements Crud
             $this->get('event_dispatcher')->dispatch(new AfterEntityPersistedEvent($entityInstance));
             $context->getEntity()->setInstance($entityInstance);
 
-            $submitButtonName = $context->getRequest()->request->all()['ea']['newForm']['btn'];
-            if (Action::SAVE_AND_CONTINUE === $submitButtonName) {
-                $url = $this->get(AdminUrlGenerator::class)
-                    ->setAction(Action::EDIT)
-                    ->setEntityId($context->getEntity()->getPrimaryKeyValue())
-                    ->generateUrl();
-
-                return $this->redirect($url);
-            }
-
-            if (Action::SAVE_AND_RETURN === $submitButtonName) {
-                $url = $context->getReferrer()
-                    ?? $this->get(AdminUrlGenerator::class)->setAction(Action::INDEX)->generateUrl();
-
-                return $this->redirect($url);
-            }
-
-            if (Action::SAVE_AND_ADD_ANOTHER === $submitButtonName) {
-                $url = $this->get(AdminUrlGenerator::class)->setAction(Action::NEW)->generateUrl();
-
-                return $this->redirect($url);
-            }
-
-            return $this->redirectToRoute($context->getDashboardRouteName());
+            return $this->newResponse($context);
         }
 
         $responseParameters = $this->configureResponseParameters(KeyValueStore::new([
@@ -536,6 +495,57 @@ abstract class AbstractCrudController extends AbstractController implements Crud
     {
         $entityManager->remove($entityInstance);
         $entityManager->flush();
+    }
+
+    public function editResponse(AdminContext $context): Response
+    {
+        $submitButtonName = $context->getRequest()->request->all()['ea']['newForm']['btn'];
+        if (Action::SAVE_AND_CONTINUE === $submitButtonName) {
+            $url = $this->get(AdminUrlGenerator::class)
+                ->setAction(Action::EDIT)
+                ->setEntityId($context->getEntity()->getPrimaryKeyValue())
+                ->generateUrl();
+
+            return $this->redirect($url);
+        }
+
+        if (Action::SAVE_AND_RETURN === $submitButtonName) {
+            $url = empty($context->getReferrer())
+                ? $this->get(AdminUrlGenerator::class)->setAction(Action::INDEX)->generateUrl()
+                : $context->getReferrer();
+
+            return $this->redirect($url);
+        }
+
+        return $this->redirectToRoute($context->getDashboardRouteName());
+    }
+
+    public function newResponse(AdminContext $context): Response
+    {
+        $submitButtonName = $context->getRequest()->request->all()['ea']['newForm']['btn'];
+        if (Action::SAVE_AND_CONTINUE === $submitButtonName) {
+            $url = $this->get(AdminUrlGenerator::class)
+                ->setAction(Action::EDIT)
+                ->setEntityId($context->getEntity()->getPrimaryKeyValue())
+                ->generateUrl();
+
+            return $this->redirect($url);
+        }
+
+        if (Action::SAVE_AND_RETURN === $submitButtonName) {
+            $url = $context->getReferrer()
+                ?? $this->get(AdminUrlGenerator::class)->setAction(Action::INDEX)->generateUrl();
+
+            return $this->redirect($url);
+        }
+
+        if (Action::SAVE_AND_ADD_ANOTHER === $submitButtonName) {
+            $url = $this->get(AdminUrlGenerator::class)->setAction(Action::NEW)->generateUrl();
+
+            return $this->redirect($url);
+        }
+
+        return $this->redirectToRoute($context->getDashboardRouteName());
     }
 
     public function createEditForm(EntityDto $entityDto, KeyValueStore $formOptions, AdminContext $context): FormInterface
