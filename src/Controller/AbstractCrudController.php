@@ -261,7 +261,7 @@ abstract class AbstractCrudController extends AbstractController implements Crud
 
             $this->container->get('event_dispatcher')->dispatch(new AfterEntityUpdatedEvent($entityInstance));
 
-            return $this->getRedirectResponseAfterSave($context, Action::EDIT);
+            return $this->getResponseAfterSave($context, Action::EDIT);
         }
 
         $responseParameters = $this->configureResponseParameters(KeyValueStore::new([
@@ -319,7 +319,7 @@ abstract class AbstractCrudController extends AbstractController implements Crud
             $this->container->get('event_dispatcher')->dispatch(new AfterEntityPersistedEvent($entityInstance));
             $context->getEntity()->setInstance($entityInstance);
 
-            return $this->getRedirectResponseAfterSave($context, Action::NEW);
+            return $this->getResponseAfterSave($context, Action::NEW);
         }
 
         $responseParameters = $this->configureResponseParameters(KeyValueStore::new([
@@ -620,7 +620,7 @@ abstract class AbstractCrudController extends AbstractController implements Crud
         }
     }
 
-    protected function getRedirectResponseAfterSave(AdminContext $context, string $action): RedirectResponse
+    protected function getResponseAfterSave(AdminContext $context, string $action): Response
     {
         $submitButtonName = $context->getRequest()->request->all()['ea']['newForm']['btn'];
 
