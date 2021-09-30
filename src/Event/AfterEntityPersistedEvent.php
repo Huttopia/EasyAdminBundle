@@ -18,4 +18,9 @@ final class AfterEntityPersistedEvent
     {
         return $this->entityInstance;
     }
+
+    public function setEntityInstance($entityInstance)
+    {
+        $this->entityInstance = $entityInstance;
+    }
 }
