@@ -211,7 +211,11 @@ abstract class AbstractCrudController extends AbstractController implements Crud
         $this->container->get(EntityFactory::class)->processActions($context->getEntity(), $context->getCrud()->getActionsConfig());
         $entityInstance = $context->getEntity()->getInstance();
 
-        if ($context->getRequest()->isXmlHttpRequest()) {
+        if (
+            $context->getRequest()->isXmlHttpRequest()
+            && $context->getRequest()->query->has('fieldName')
+            && $context->getRequest()->query->has('newValue')
+        ) {
             $fieldName = $context->getRequest()->query->get('fieldName');
             $newValue = 'true' === mb_strtolower($context->getRequest()->query->get('newValue'));
 
