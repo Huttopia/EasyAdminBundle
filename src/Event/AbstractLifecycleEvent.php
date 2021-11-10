@@ -20,4 +20,11 @@ abstract class AbstractLifecycleEvent implements EntityLifecycleEventInterface
     {
         return $this->entityInstance;
     }
+
+    public function setEntityInstance($entityInstance)
+    {
+        $this->entityInstance = $entityInstance;
+
+        return $this;
+    }
 }
