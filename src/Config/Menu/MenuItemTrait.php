@@ -25,9 +25,16 @@ trait MenuItemTrait
         return $this;
     }
 
-    public function setPermission(string $permission): self
+    public function addPermission(string $permission): self
     {
-        $this->dto->setPermission($permission);
+        $this->dto->addPermission($permission);
+
+        return $this;
+    }
+
+    public function setPermissions(array $permissions): self
+    {
+        $this->dto->setPermissions($permissions);
 
         return $this;
     }

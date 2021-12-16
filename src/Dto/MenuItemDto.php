@@ -24,7 +24,7 @@ final class MenuItemDto
     private TranslatableInterface|string|null $label = null;
     private ?string $icon = null;
     private string $cssClass = '';
-    private ?string $permission = null;
+    private array $permissions = [];
     private ?string $routeName = null;
     private ?array $routeParameters = null;
     private ?string $linkUrl = null;
@@ -120,14 +120,19 @@ final class MenuItemDto
         $this->routeParameters = $routeParameters;
     }
 
-    public function getPermission(): ?string
+    public function getPermissions(): array
     {
-        return $this->permission;
+        return $this->permissions;
     }
 
-    public function setPermission(?string $permission): void
+    public function addPermission(string $permission): void
     {
-        $this->permission = $permission;
+        $this->permissions[] = $permission;
+    }
+
+    public function setPermissions(array $permissions): void
+    {
+        $this->permissions = $permissions;
     }
 
     public function getCssClass(): string
