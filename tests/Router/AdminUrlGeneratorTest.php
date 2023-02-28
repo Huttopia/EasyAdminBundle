@@ -6,7 +6,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Option\EA;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Provider\AdminContextProvider;
-use EasyCorp\Bundle\EasyAdminBundle\Registry\CrudControllerRegistry;
 use EasyCorp\Bundle\EasyAdminBundle\Registry\DashboardControllerRegistry;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Bridge\PhpUnit\ExpectDeprecationTrait;
@@ -128,42 +127,6 @@ class AdminUrlGeneratorTest extends WebTestCase
         $adminUrlGenerator->generateUrl();
     }
 
-    /**
-     * @group legacy
-     */
-    public function testCrudIdMethodIsTransformedIntoCrudFqcn()
-    {
-        // The following assert should work, but it fails for some unknown reason ("Failed asserting that string matches format description.")
-        // $this->expectDeprecation("Since easycorp/easyadmin-bundle 3.2.0: The \"setCrudId()\" method of the \"EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator\" service and the related \"crudId\" query parameter are deprecated. Instead, use the CRUD Controller FQCN and the \"setController()\" method like this: ->setController('App\Controller\Admin\SomeCrudController').");
-
-        $adminUrlGenerator = $this->getAdminUrlGenerator();
-
-        $adminUrlGenerator->setCrudId('a1b2c3');
-        $this->assertNull($adminUrlGenerator->get(EA::CRUD_ID));
-        $this->assertSame('App\Controller\Admin\SomeCrudController', $adminUrlGenerator->get(EA::CRUD_CONTROLLER_FQCN));
-    }
-
-    public function testCrudIdParameterIsTransformedIntoCrudFqcn()
-    {
-        $adminUrlGenerator = $this->getAdminUrlGenerator();
-
-        // don't use setCrudId() because it transforms the crudId into crudFqcn automatically
-        $adminUrlGenerator->set(EA::CRUD_ID, 'a1b2c3');
-        $this->assertSame('http://localhost/admin?crudAction=index&crudControllerFqcn=App%5CController%5CAdmin%5CSomeCrudController&foo=bar', $adminUrlGenerator->generateUrl());
-    }
-
-    public function testUnknowCrudId()
-    {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('The given "this_id_does_not_exist" value is not a valid CRUD ID. Instead of dealing with CRUD controller IDs when generating admin URLs, use the "setController()" method to set the CRUD controller FQCN.');
-
-        $adminUrlGenerator = $this->getAdminUrlGenerator();
-
-        // don't use setCrudId() because it transforms the crudId into crudFqcn automatically
-        $adminUrlGenerator->set(EA::CRUD_ID, 'this_id_does_not_exist');
-        $adminUrlGenerator->generateUrl();
-    }
-
     public function testDefaultCrudAction()
     {
         $adminUrlGenerator = $this->getAdminUrlGenerator();
@@ -212,13 +175,32 @@ class AdminUrlGeneratorTest extends WebTestCase
         $this->assertNull($adminUrlGenerator->get(EA::CRUD_CONTROLLER_FQCN));
 
         $adminUrlGenerator->setController('App\Controller\Admin\SomeCrudController');
-        $adminUrlGenerator->set(EA::MENU_INDEX, 3);
         $adminUrlGenerator->set('foo', 'bar');
         $adminUrlGenerator->setRoute('some_route', ['key' => 'value']);
 
         $this->assertNull($adminUrlGenerator->get(EA::CRUD_CONTROLLER_FQCN));
         $this->assertNull($adminUrlGenerator->get('foo'));
+    }
+
+    /**
+     * @legacy
+     */
+    public function testLegacyParameters()
+    {
+        $adminUrlGenerator = $this->getAdminUrlGenerator();
+        $adminUrlGenerator->set(EA::MENU_INDEX, 3);
+
         $this->assertSame(3, $adminUrlGenerator->get(EA::MENU_INDEX));
+    }
+
+    /**
+     * @group legacy
+     */
+    public function testDeprecatedParameterMessage()
+    {
+        $adminUrlGenerator = $this->getAdminUrlGenerator();
+        $this->expectDeprecation('Since easycorp/easyadmin-bundle 4.5.0: Using the "menuIndex" query parameter is deprecated. Menu items are now highlighted automatically based on the Request data, so you don\'t have to deal with menu items manually anymore.');
+        $adminUrlGenerator->set('menuIndex', 1);
     }
 
     public function testIncludeReferrer()
@@ -309,14 +291,9 @@ class AdminUrlGeneratorTest extends WebTestCase
         $dashboardControllerRegistry->method('getNumberOfDashboards')->willReturn(2);
         $dashboardControllerRegistry->method('getFirstDashboardRoute')->willReturn('admin');
 
-        $crudControllerRegistry = $this->getMockBuilder(CrudControllerRegistry::class)->disableOriginalConstructor()->getMock();
-        $crudControllerRegistry->method('findCrudFqcnByCrudId')->willReturnMap([
-            ['a1b2c3', 'App\Controller\Admin\SomeCrudController'],
-        ]);
-
         $container = Kernel::MAJOR_VERSION >= 6 ? static::getContainer() : self::$container;
         $router = $container->get('router');
 
-        return new AdminUrlGenerator($adminContextProvider, $router, $dashboardControllerRegistry, $crudControllerRegistry);
+        return new AdminUrlGenerator($adminContextProvider, $router, $dashboardControllerRegistry);
     }
 }

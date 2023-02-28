@@ -88,6 +88,13 @@ trait FieldTrait
         return $this;
     }
 
+    public function setEmptyData($emptyData = null): self
+    {
+        $this->dto->setFormTypeOption('empty_data', $emptyData);
+
+        return $this;
+    }
+
     public function setFormType(string $formTypeFqcn): self
     {
         $this->dto->setFormType($formTypeFqcn);
@@ -211,10 +218,6 @@ trait FieldTrait
         }
 
         foreach ($entryNamesOrAssets as $entryNameOrAsset) {
-            if (!\is_string($entryNameOrAsset) && !($entryNameOrAsset instanceof Asset)) {
-                throw new \RuntimeException(sprintf('The argument passed to %s() can only be a string or a object of type "%s".', __METHOD__, Asset::class));
-            }
-
             if (\is_string($entryNameOrAsset)) {
                 $this->dto->addWebpackEncoreAsset(new AssetDto($entryNameOrAsset));
             } else {
@@ -394,13 +397,6 @@ trait FieldTrait
     public function setDefaultColumns(int|string $cols): self
     {
         $this->dto->setDefaultColumns(\is_int($cols) ? 'col-md-'.$cols : $cols);
-
-        return $this;
-    }
-
-    public function fillRow(bool $fillRow = true): self
-    {
-        $this->dto->setFillRestOfFormRow($fillRow);
 
         return $this;
     }

@@ -67,6 +67,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Form\Type\FiltersFormType;
 use EasyCorp\Bundle\EasyAdminBundle\Inspector\DataCollector;
 use EasyCorp\Bundle\EasyAdminBundle\Intl\IntlFormatter;
 use EasyCorp\Bundle\EasyAdminBundle\Maker\ClassMaker;
+use EasyCorp\Bundle\EasyAdminBundle\Menu\MenuItemMatcher;
+use EasyCorp\Bundle\EasyAdminBundle\Menu\MenuItemMatcherInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Orm\EntityPaginator;
 use EasyCorp\Bundle\EasyAdminBundle\Orm\EntityRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Orm\EntityUpdater;
@@ -155,12 +157,11 @@ return static function (ContainerConfigurator $container) {
 
         ->set(AdminRouterSubscriber::class)
             ->arg(0, service(AdminContextFactory::class))
-            ->arg(1, service(CrudControllerRegistry::class))
-            ->arg(2, service(ControllerFactory::class))
-            ->arg(3, service('controller_resolver'))
+            ->arg(1, service(ControllerFactory::class))
+            ->arg(2, service('controller_resolver'))
+            ->arg(3, service('router'))
             ->arg(4, service('router'))
-            ->arg(5, service('router'))
-            ->arg(6, service('twig'))
+            ->arg(5, service('twig'))
             ->tag('kernel.event_subscriber')
 
         ->set(ControllerFactory::class)
@@ -184,9 +185,8 @@ return static function (ContainerConfigurator $container) {
             // initialization done after generating each URL
             ->share(false)
             ->arg(0, service(AdminContextProvider::class))
-            ->arg(1, service('router.default'))
+            ->arg(1, service('router'))
             ->arg(2, service(DashboardControllerRegistry::class))
-            ->arg(3, service(CrudControllerRegistry::class))
 
         ->set('service_locator_'.AdminUrlGenerator::class, ServiceLocator::class)
             ->args([[AdminUrlGenerator::class => service(AdminUrlGenerator::class)]])
@@ -196,10 +196,16 @@ return static function (ContainerConfigurator $container) {
             ->arg(0, '%kernel.secret%')
 
         ->set(MenuFactory::class)
-            ->arg(0, new Reference(AdminContextProvider::class))
-            ->arg(1, new Reference(AuthorizationChecker::class))
-            ->arg(2, new Reference('security.logout_url_generator'))
-            ->arg(3, new Reference(AdminUrlGenerator::class))
+            ->arg(0, service(AdminContextProvider::class))
+            ->arg(1, service(AuthorizationChecker::class))
+            ->arg(2, service('security.logout_url_generator'))
+            ->arg(3, service(AdminUrlGenerator::class))
+            ->arg(4, service(MenuItemMatcherInterface::class))
+
+        ->set(MenuItemMatcher::class)
+            ->arg(0, service(AdminContextProvider::class))
+
+        ->alias(MenuItemMatcherInterface::class, MenuItemMatcher::class)
 
         ->set(EntityRepository::class)
             ->arg(0, service(AdminContextProvider::class))
@@ -286,6 +292,8 @@ return static function (ContainerConfigurator $container) {
         ->set(AssociationConfigurator::class)
             ->arg(0, new Reference(EntityFactory::class))
             ->arg(1, new Reference(AdminUrlGenerator::class))
+            ->arg(2, service('request_stack'))
+            ->arg(3, service(ControllerFactory::class))
 
         ->set(AvatarConfigurator::class)
 
@@ -304,6 +312,7 @@ return static function (ContainerConfigurator $container) {
 
         ->set(CommonPreConfigurator::class)
             ->arg(0, new Reference('property_accessor'))
+            ->arg(1, service(EntityFactory::class))
             ->tag(EasyAdminExtension::TAG_FIELD_CONFIGURATOR, ['priority' => 9999])
 
         ->set(CountryConfigurator::class)

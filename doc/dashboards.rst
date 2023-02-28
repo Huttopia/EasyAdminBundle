@@ -108,6 +108,11 @@ dashboard with the ``make:admin:dashboard`` command, the route is defined using
     to it to inject dependencies. Instead, inject those dependencies in the
     constructor method of the controller.
 
+.. note::
+
+    If you are implementing a multilingual dashboard, add the ``_locale`` parameter
+    to the route (e.g. ``/admin/{_locale}``).
+
 The ``/admin`` URL is only a default value, so you can change it. If you do that,
 don't forget to also update this value in your Symfony security config to
 :ref:`restrict access to the entire backend <security-entire-backend>`.
@@ -228,6 +233,7 @@ explained later)::
 
     use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
     use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
+    use EasyCorp\Bundle\EasyAdminBundle\Dto\LocaleDto;
 
     class DashboardController extends AbstractDashboardController
     {
@@ -270,6 +276,26 @@ explained later)::
                 // by default, all backend URLs are generated as absolute URLs. If you
                 // need to generate relative URLs instead, call this method
                 ->generateRelativeUrls()
+
+                // set this option if you want to enable locale switching in dashboard.
+                // IMPORTANT: this feature won't work unless you add the {_locale}
+                // parameter in the admin dashboard URL (e.g. '/admin/{_locale}').
+                // the name of each locale will be rendered in that locale
+                // (in the following example you'll see: "English", "Polski")
+                ->setLocales(['en', 'pl'])
+                // to customize the labels of locales, pass a key => value array
+                // (e.g. to display flags; although it's not a recommended practice,
+                // because many languages/locales are not associated to a single country)
+                ->setLocales([
+                    'en' => '🇬🇧 English',
+                    'pl' => '🇵🇱 Polski'
+                ])
+                // to further customize the locale option, pass an instance of
+                // EasyCorp\Bundle\EasyAdminBundle\Config\Locale
+                ->setLocales([
+                    'en', // locale without custom options
+                    Locale::new('pl', 'polski', 'far fa-language') // custom label and icon
+                ])
             ;
         }
     }
@@ -297,12 +323,18 @@ and render them in your own Twig template::
 
     class DashboardController extends AbstractDashboardController
     {
-        // ...
+        public function __construct(
+            private ChartBuilderInterface $chartBuilder,
+        ) {
+        }
+
+        // ... you'll also need to load some CSS/JavaScript assets to render
+        // the charts; this is explained later in the chapter about Design
 
         #[Route('/admin')]
-        public function index(ChartBuilderInterface $chartBuilder): Response
+        public function admin(): Response
         {
-            $chart = $chartBuilder->createChart(Chart::TYPE_LINE);
+            $chart = $this->chartBuilder->createChart(Chart::TYPE_LINE);
             // ...set chart data and options somehow
 
             return $this->render('admin/my-dashboard.html.twig', [
@@ -310,6 +342,13 @@ and render them in your own Twig template::
             ]);
         }
     }
+
+.. note::
+
+    Since ``index()`` is part of the ``Dashboard`` interface, you cannot add arguments
+    to it to inject dependencies (such as ``ChartBuilderInterface`` in the above
+    example). Instead, inject dependencies in the controller constructor or use
+    a method name different from the ones defined in the interface.
 
 Another popular option is to make the dashboard redirect to the most common task
 for people working on the backend. This requires :ref:`generating admin URLs <generate-admin-urls>`,
@@ -800,8 +839,8 @@ value explicitly::
 .. tip::
 
     If you want to make the backend use a different language than the public
-    website, you'll need to `work with the user locale`_ to set the request
-    locale before the translation service retrieves it.
+    website, add the ``{_locale}`` parameter to your dashboard route and use
+    the ``setLocales()`` method to configure the locales available in the backend.
 
 .. note::
 
@@ -964,5 +1003,4 @@ etc. Example:
 .. _`logout feature`: https://symfony.com/doc/current/security.html#logging-out
 .. _`Symfony translation`: https://symfony.com/doc/current/components/translation.html
 .. _`translation domain`: https://symfony.com/doc/current/components/translation.html#using-message-domains
-.. _`work with the user locale`: https://symfony.com/doc/current/translation/locale.html
 .. _`Symfony UX Chart.js`: https://symfony.com/bundles/ux-chartjs/current/index.html

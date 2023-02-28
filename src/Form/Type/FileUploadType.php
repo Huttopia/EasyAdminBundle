@@ -139,7 +139,8 @@ class FileUploadType extends AbstractType implements DataMapperInterface
                 $value .= \DIRECTORY_SEPARATOR;
             }
 
-            if (!str_starts_with($value, $this->projectDir)) {
+            $isStreamWrapper = filter_var($value, \FILTER_VALIDATE_URL);
+            if (!$isStreamWrapper && !str_starts_with($value, $this->projectDir)) {
                 $value = $this->projectDir.'/'.$value;
             }
 
@@ -174,11 +175,11 @@ class FileUploadType extends AbstractType implements DataMapperInterface
             };
         });
         $resolver->setNormalizer('allow_add', static function (Options $options, string $value): bool {
-            if ($value && !$options['multiple']) {
+            if ((bool) $value && !$options['multiple']) {
                 throw new InvalidArgumentException('Setting "allow_add" option to "true" when "multiple" option is "false" is not supported.');
             }
 
-            return $value;
+            return (bool) $value;
         });
     }
 

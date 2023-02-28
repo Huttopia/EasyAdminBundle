@@ -16,9 +16,9 @@ tests-coverage-view-in-browser: ## Open the generated HTML coverage in your defa
 
 ## —— Linters —————————————————————————————————
 linter-code-syntax: ## Lint PHP code (in dry-run mode, does not edit files)
-	docker run --rm -it -w=/app -v $(shell pwd):/app oskarstark/php-cs-fixer-ga:latest --diff -vvv --dry-run --using-cache=no
+	docker run --rm -it --pull always -w=/app -v $(shell pwd):/app oskarstark/php-cs-fixer-ga:latest --diff -vvv --dry-run --using-cache=no
 linter-docs: ## Lint docs
-	docker run --rm -it -e DOCS_DIR='/docs' -v $(shell pwd)/doc:/docs oskarstark/doctor-rst:latest --short
+	docker run --rm -it --pull always -e DOCS_DIR='/docs' -v $(shell pwd)/doc:/docs oskarstark/doctor-rst:latest --short
 
 ## —— Development —————————————————————————————
 build: ## Initially build the package before development
@@ -27,5 +27,6 @@ build: ## Initially build the package before development
 
 build-assets: ## Rebuild assets after changes in JS or SCSS
 	yarn encore production
+	src/Resources/bin/fix-assets-manifest-file.php
 
 checks-before-pr: linter-code-syntax linter-docs tests ## Runs tests and linters which are also run on PRs

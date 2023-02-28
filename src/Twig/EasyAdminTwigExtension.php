@@ -2,6 +2,9 @@
 
 namespace EasyCorp\Bundle\EasyAdminBundle\Twig;
 
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\FieldLayoutDto;
+use EasyCorp\Bundle\EasyAdminBundle\Factory\FieldLayoutFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
@@ -34,6 +37,7 @@ class EasyAdminTwigExtension extends AbstractExtension
             new TwigFunction('ea_url', [$this, 'getAdminUrlGenerator']),
             new TwigFunction('ea_csrf_token', [$this, 'renderCsrfToken']),
             new TwigFunction('ea_call_function_if_exists', [$this, 'callFunctionIfExists'], ['needs_environment' => true, 'is_safe' => ['html' => true]]),
+            new TwigFunction('ea_create_field_layout', [$this, 'createFieldLayout']),
         ];
     }
 
@@ -79,8 +83,7 @@ class EasyAdminTwigExtension extends AbstractExtension
     // Code adapted from https://stackoverflow.com/a/48606773/2804294 (License: CC BY-SA 3.0)
     public function applyFilterIfExists(Environment $environment, $value, string $filterName, ...$filterArguments)
     {
-        $filter = $environment->getFilter($filterName);
-        if (false === $filter || null === $filter) {
+        if (null === $filter = $environment->getFilter($filterName)) {
             return $value;
         }
 
@@ -136,7 +139,7 @@ class EasyAdminTwigExtension extends AbstractExtension
 
     public function callFunctionIfExists(Environment $environment, string $functionName, ...$functionArguments)
     {
-        if (false === $function = $environment->getFunction($functionName)) {
+        if (null === $function = $environment->getFunction($functionName)) {
             return '';
         }
 
@@ -158,5 +161,10 @@ class EasyAdminTwigExtension extends AbstractExtension
         } catch (\Exception) {
             return '';
         }
+    }
+
+    public function createFieldLayout(?FieldCollection $fieldDtos): FieldLayoutDto
+    {
+        return FieldLayoutFactory::createFromFieldDtos($fieldDtos);
     }
 }

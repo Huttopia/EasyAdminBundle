@@ -4,17 +4,22 @@ namespace EasyCorp\Bundle\EasyAdminBundle\Field\Configurator;
 
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\PersistentCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Option\EA;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Option\TextAlign;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Contracts\Field\FieldConfiguratorInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\FieldDto;
+use EasyCorp\Bundle\EasyAdminBundle\Factory\ControllerFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\EntityFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Form\Type\CrudAutocompleteType;
+use EasyCorp\Bundle\EasyAdminBundle\Form\Type\CrudFormType;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\PropertyAccess\Exception\UnexpectedTypeException;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
 use function Symfony\Component\Translation\t;
@@ -26,11 +31,15 @@ final class AssociationConfigurator implements FieldConfiguratorInterface
 {
     private EntityFactory $entityFactory;
     private AdminUrlGenerator $adminUrlGenerator;
+    private RequestStack $requestStack;
+    private ControllerFactory $controllerFactory;
 
-    public function __construct(EntityFactory $entityFactory, AdminUrlGenerator $adminUrlGenerator)
+    public function __construct(EntityFactory $entityFactory, AdminUrlGenerator $adminUrlGenerator, RequestStack $requestStack, ControllerFactory $controllerFactory)
     {
         $this->entityFactory = $entityFactory;
         $this->adminUrlGenerator = $adminUrlGenerator;
+        $this->requestStack = $requestStack;
+        $this->controllerFactory = $controllerFactory;
     }
 
     public function supports(FieldDto $field, EntityDto $entityDto): bool
@@ -47,9 +56,37 @@ final class AssociationConfigurator implements FieldConfiguratorInterface
 
         $targetEntityFqcn = $field->getDoctrineMetadata()->get('targetEntity');
         // the target CRUD controller can be NULL; in that case, field value doesn't link to the related entity
-        $targetCrudControllerFqcn = $field->getCustomOption(AssociationField::OPTION_CRUD_CONTROLLER)
+        $targetCrudControllerFqcn = $field->getCustomOption(AssociationField::OPTION_EMBEDDED_CRUD_FORM_CONTROLLER)
             ?? $context->getCrudControllers()->findCrudFqcnByEntityFqcn($targetEntityFqcn);
-        $field->setCustomOption(AssociationField::OPTION_CRUD_CONTROLLER, $targetCrudControllerFqcn);
+
+        if (true === $field->getCustomOption(AssociationField::OPTION_RENDER_AS_EMBEDDED_FORM)) {
+            if (false === $entityDto->isToOneAssociation($propertyName)) {
+                throw new \RuntimeException(
+                    sprintf(
+                        'The "%s" association field of "%s" is a to-many association but it\'s trying to use the "renderAsEmbeddedForm()" option, which is only available for to-one associations. If you want to use a CRUD form to render to-many associations, use a CollectionField instead of the AssociationField.',
+                        $field->getProperty(),
+                        $context->getCrud()?->getControllerFqcn(),
+                    )
+                );
+            }
+
+            if (null === $targetCrudControllerFqcn) {
+                throw new \RuntimeException(
+                    sprintf(
+                        'The "%s" association field of "%s" wants to render its contents using an EasyAdmin CRUD form. However, no CRUD form was found related to this field. You can either create a CRUD controller for the entity "%s" or pass the CRUD controller to use as the first argument of the "renderAsEmbeddedForm()" method.',
+                        $field->getProperty(),
+                        $context->getCrud()?->getControllerFqcn(),
+                        $targetEntityFqcn
+                    )
+                );
+            }
+
+            $this->configureCrudForm($field, $entityDto, $propertyName, $targetEntityFqcn, $targetCrudControllerFqcn);
+
+            return;
+        }
+
+        $field->setCustomOption(AssociationField::OPTION_EMBEDDED_CRUD_FORM_CONTROLLER, $targetCrudControllerFqcn);
 
         if (AssociationField::WIDGET_AUTOCOMPLETE === $field->getCustomOption(AssociationField::OPTION_WIDGET)) {
             $field->setFormTypeOption('attr.data-ea-widget', 'ea-autocomplete');
@@ -76,7 +113,7 @@ final class AssociationConfigurator implements FieldConfiguratorInterface
             }
 
             $accessor = new PropertyAccessor();
-            $targetCrudControllerFqcn = $field->getCustomOption(AssociationField::OPTION_CRUD_CONTROLLER);
+            $targetCrudControllerFqcn = $field->getCustomOption(AssociationField::OPTION_EMBEDDED_CRUD_FORM_CONTROLLER);
 
             $field->setFormTypeOptionIfNotSet('class', $targetEntityFqcn);
 
@@ -100,7 +137,7 @@ final class AssociationConfigurator implements FieldConfiguratorInterface
         }
 
         if (true === $field->getCustomOption(AssociationField::OPTION_AUTOCOMPLETE)) {
-            $targetCrudControllerFqcn = $field->getCustomOption(AssociationField::OPTION_CRUD_CONTROLLER);
+            $targetCrudControllerFqcn = $field->getCustomOption(AssociationField::OPTION_EMBEDDED_CRUD_FORM_CONTROLLER);
             if (null === $targetCrudControllerFqcn) {
                 throw new \RuntimeException(sprintf('The "%s" field cannot be autocompleted because it doesn\'t define the related CRUD controller FQCN with the "setCrudController()" method.', $field->getProperty()));
             }
@@ -109,7 +146,7 @@ final class AssociationConfigurator implements FieldConfiguratorInterface
             $autocompleteEndpointUrl = $this->adminUrlGenerator
                 ->unsetAll()
                 ->set('page', 1) // The autocomplete should always start on the first page
-                ->setController($field->getCustomOption(AssociationField::OPTION_CRUD_CONTROLLER))
+                ->setController($field->getCustomOption(AssociationField::OPTION_EMBEDDED_CRUD_FORM_CONTROLLER))
                 ->setAction('autocomplete')
                 ->set(AssociationField::PARAM_AUTOCOMPLETE_CONTEXT, [
                     EA::CRUD_CONTROLLER_FQCN => $context->getRequest()->query->get(EA::CRUD_CONTROLLER_FQCN),
@@ -124,7 +161,7 @@ final class AssociationConfigurator implements FieldConfiguratorInterface
                 // TODO: should this use `createIndexQueryBuilder` instead, so we get the default ordering etc.?
                 // it would then be identical to the one used in autocomplete action, but it is a bit complex getting it in here
                 $queryBuilder = $repository->createQueryBuilder('entity');
-                if ($queryBuilderCallable = $field->getCustomOption(AssociationField::OPTION_QUERY_BUILDER_CALLABLE)) {
+                if (null !== $queryBuilderCallable = $field->getCustomOption(AssociationField::OPTION_QUERY_BUILDER_CALLABLE)) {
                     $queryBuilderCallable($queryBuilder);
                 }
 
@@ -142,7 +179,7 @@ final class AssociationConfigurator implements FieldConfiguratorInterface
         }
 
         $targetEntityFqcn = $field->getDoctrineMetadata()->get('targetEntity');
-        $targetCrudControllerFqcn = $field->getCustomOption(AssociationField::OPTION_CRUD_CONTROLLER);
+        $targetCrudControllerFqcn = $field->getCustomOption(AssociationField::OPTION_EMBEDDED_CRUD_FORM_CONTROLLER);
 
         $targetEntityDto = null === $field->getValue()
             ? $this->entityFactory->create($targetEntityFqcn)
@@ -222,5 +259,49 @@ final class AssociationConfigurator implements FieldConfiguratorInterface
         }
 
         return 0;
+    }
+
+    private function configureCrudForm(FieldDto $field, EntityDto $entityDto, string $propertyName, string $targetEntityFqcn, string $targetCrudControllerFqcn): void
+    {
+        $field->setFormType(CrudFormType::class);
+        $propertyAccessor = new PropertyAccessor();
+
+        if (null === $entityDto->getInstance()) {
+            $associatedEntity = null;
+        } else {
+            $associatedEntity = $propertyAccessor->isReadable($entityDto->getInstance(), $propertyName)
+                ? $propertyAccessor->getValue($entityDto->getInstance(), $propertyName)
+                : null;
+        }
+
+        if (null === $associatedEntity) {
+            $targetCrudControllerAction = Action::NEW;
+            $targetCrudControllerPageName = $field->getCustomOption(AssociationField::OPTION_EMBEDDED_CRUD_FORM_NEW_PAGE_NAME) ?? Crud::PAGE_NEW;
+        } else {
+            $targetCrudControllerAction = Action::EDIT;
+            $targetCrudControllerPageName = $field->getCustomOption(AssociationField::OPTION_EMBEDDED_CRUD_FORM_EDIT_PAGE_NAME) ?? Crud::PAGE_EDIT;
+        }
+
+        $field->setFormTypeOption(
+            'entityDto',
+            $this->createEntityDto($targetEntityFqcn, $targetCrudControllerFqcn, $targetCrudControllerAction, $targetCrudControllerPageName),
+        );
+    }
+
+    private function createEntityDto(string $entityFqcn, string $crudControllerFqcn, string $crudControllerAction, string $crudControllerPageName): EntityDto
+    {
+        $entityDto = $this->entityFactory->create($entityFqcn);
+
+        $crudController = $this->controllerFactory->getCrudControllerInstance(
+            $crudControllerFqcn,
+            $crudControllerAction,
+            $this->requestStack->getMainRequest()
+        );
+
+        $fields = $crudController->configureFields($crudControllerPageName);
+
+        $this->entityFactory->processFields($entityDto, FieldCollection::new($fields));
+
+        return $entityDto;
     }
 }

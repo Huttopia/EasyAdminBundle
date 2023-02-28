@@ -14,7 +14,9 @@ final class AssociationField implements FieldInterface
     use FieldTrait;
 
     public const OPTION_AUTOCOMPLETE = 'autocomplete';
-    public const OPTION_CRUD_CONTROLLER = 'crudControllerFqcn';
+    public const OPTION_EMBEDDED_CRUD_FORM_CONTROLLER = 'crudControllerFqcn';
+    /** @deprecated since easycorp/easyadmin-bundle 4.4.3 use AssociationField::OPTION_EMBEDDED_CRUD_FORM_CONTROLLER */
+    public const OPTION_CRUD_CONTROLLER = self::OPTION_EMBEDDED_CRUD_FORM_CONTROLLER;
     public const OPTION_WIDGET = 'widget';
     public const OPTION_QUERY_BUILDER_CALLABLE = 'queryBuilderCallable';
     /** @internal this option is intended for internal use only */
@@ -27,6 +29,12 @@ final class AssociationField implements FieldInterface
 
     /** @internal this option is intended for internal use only */
     public const PARAM_AUTOCOMPLETE_CONTEXT = 'autocompleteContext';
+
+    /** @internal this option is intended for internal use only */
+    public const OPTION_RENDER_AS_EMBEDDED_FORM = 'renderAsEmbeddedForm';
+
+    public const OPTION_EMBEDDED_CRUD_FORM_NEW_PAGE_NAME = 'crudNewPageName';
+    public const OPTION_EMBEDDED_CRUD_FORM_EDIT_PAGE_NAME = 'crudEditPageName';
 
     /**
      * @param TranslatableInterface|string|false|null $label
@@ -41,11 +49,14 @@ final class AssociationField implements FieldInterface
             ->addCssClass('field-association')
             ->setDefaultColumns('col-md-7 col-xxl-6')
             ->setCustomOption(self::OPTION_AUTOCOMPLETE, false)
-            ->setCustomOption(self::OPTION_CRUD_CONTROLLER, null)
+            ->setCustomOption(self::OPTION_EMBEDDED_CRUD_FORM_CONTROLLER, null)
             ->setCustomOption(self::OPTION_WIDGET, self::WIDGET_AUTOCOMPLETE)
             ->setCustomOption(self::OPTION_QUERY_BUILDER_CALLABLE, null)
             ->setCustomOption(self::OPTION_RELATED_URL, null)
-            ->setCustomOption(self::OPTION_DOCTRINE_ASSOCIATION_TYPE, null);
+            ->setCustomOption(self::OPTION_DOCTRINE_ASSOCIATION_TYPE, null)
+            ->setCustomOption(self::OPTION_RENDER_AS_EMBEDDED_FORM, false)
+            ->setCustomOption(self::OPTION_EMBEDDED_CRUD_FORM_NEW_PAGE_NAME, null)
+            ->setCustomOption(self::OPTION_EMBEDDED_CRUD_FORM_EDIT_PAGE_NAME, null);
     }
 
     public function autocomplete(): self
@@ -64,7 +75,7 @@ final class AssociationField implements FieldInterface
 
     public function setCrudController(string $crudControllerFqcn): self
     {
-        $this->setCustomOption(self::OPTION_CRUD_CONTROLLER, $crudControllerFqcn);
+        $this->setCustomOption(self::OPTION_EMBEDDED_CRUD_FORM_CONTROLLER, $crudControllerFqcn);
 
         return $this;
     }
@@ -72,6 +83,16 @@ final class AssociationField implements FieldInterface
     public function setQueryBuilder(\Closure $queryBuilderCallable): self
     {
         $this->setCustomOption(self::OPTION_QUERY_BUILDER_CALLABLE, $queryBuilderCallable);
+
+        return $this;
+    }
+
+    public function renderAsEmbeddedForm(?string $crudControllerFqcn = null, ?string $crudNewPageName = null, ?string $crudEditPageName = null): self
+    {
+        $this->setCustomOption(self::OPTION_RENDER_AS_EMBEDDED_FORM, true);
+        $this->setCustomOption(self::OPTION_EMBEDDED_CRUD_FORM_CONTROLLER, $crudControllerFqcn);
+        $this->setCustomOption(self::OPTION_EMBEDDED_CRUD_FORM_NEW_PAGE_NAME, $crudNewPageName);
+        $this->setCustomOption(self::OPTION_EMBEDDED_CRUD_FORM_EDIT_PAGE_NAME, $crudEditPageName);
 
         return $this;
     }

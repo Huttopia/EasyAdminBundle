@@ -36,8 +36,8 @@ final class TextConfigurator implements FieldConfiguratorInterface
             throw new \RuntimeException(sprintf('The value of the "%s" field of the entity with ID = "%s" can\'t be converted into a string, so it cannot be represented by a TextField or a TextareaField.', $field->getProperty(), $entityDto->getPrimaryKeyValue()));
         }
 
-        $renderAsHtml = $field->getCustomOption(TextField::OPTION_RENDER_AS_HTML);
-        $stripTags = $field->getCustomOption(TextField::OPTION_STRIP_TAGS);
+        $renderAsHtml = true === $field->getCustomOption(TextField::OPTION_RENDER_AS_HTML);
+        $stripTags = true === $field->getCustomOption(TextField::OPTION_STRIP_TAGS);
         if ($renderAsHtml) {
             $formattedValue = (string) $field->getValue();
         } elseif ($stripTags) {
@@ -49,7 +49,7 @@ final class TextConfigurator implements FieldConfiguratorInterface
         $configuredMaxLength = $field->getCustomOption(TextField::OPTION_MAX_LENGTH);
         // when contents are rendered as HTML, "max length" option is ignored to prevent
         // truncating contents in the middle of an HTML tag, which messes the entire backend
-        if (!$renderAsHtml && null !== $configuredMaxLength) {
+        if (!$renderAsHtml) {
             $isDetailAction = Action::DETAIL === $context->getCrud()->getCurrentAction();
             $defaultMaxLength = $isDetailAction ? \PHP_INT_MAX : 64;
             $formattedValue = u($formattedValue)->truncate($configuredMaxLength ?? $defaultMaxLength, '…')->toString();

@@ -4,7 +4,6 @@ namespace EasyCorp\Bundle\EasyAdminBundle\Dto;
 
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\KeyValueStore;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Option\TextAlign;
 use function Symfony\Component\String\u;
 use Symfony\Component\Uid\Ulid;
 use Symfony\Contracts\Translation\TranslatableInterface;
@@ -25,7 +24,7 @@ final class FieldDto
     private ?bool $sortable = null;
     private ?bool $virtual = null;
     private ?string $permission = null;
-    private string $textAlign = TextAlign::LEFT;
+    private ?string $textAlign = null;
     private $help;
     private string $cssClass = '';
     // how many columns the field takes when rendering
@@ -81,7 +80,7 @@ final class FieldDto
 
     public function isFormDecorationField(): bool
     {
-        return null !== u($this->getCssClass())->containsAny(['field-form_panel', 'field-form_tab']);
+        return u($this->getCssClass())->containsAny(['field-form_panel', 'field-form_tab']);
     }
 
     public function getFieldFqcn(): ?string
@@ -153,15 +152,9 @@ final class FieldDto
         return $this->label;
     }
 
-    /**
-     * @param TranslatableInterface|string|false|null $label
-     */
-    public function setLabel(/* TranslatableInterface|string|false|null */ $label): void
+    public function setLabel(/* @var TranslatableInterface|string|false|null */ $label): void
     {
-        if (!\is_string($label)
-            && !$label instanceof TranslatableInterface
-            && false !== $label
-            && null !== $label) {
+        if (!\is_string($label) && !$label instanceof TranslatableInterface && false !== $label && null !== $label) {
             trigger_deprecation(
                 'easycorp/easyadmin-bundle',
                 '4.0.5',
@@ -239,7 +232,7 @@ final class FieldDto
         $this->virtual = $isVirtual;
     }
 
-    public function getTextAlign(): string
+    public function getTextAlign(): ?string
     {
         return $this->textAlign;
     }

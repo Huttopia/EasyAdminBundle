@@ -26,13 +26,46 @@ final class ChoiceConfigurator implements FieldConfiguratorInterface
 
     public function configure(FieldDto $field, EntityDto $entityDto, AdminContext $context): void
     {
-        $areChoicesTranslatable = $field->getCustomOption(ChoiceField::OPTION_USE_TRANSLATABLE_CHOICES);
-        $isExpanded = $field->getCustomOption(ChoiceField::OPTION_RENDER_EXPANDED);
-        $isMultipleChoice = $field->getCustomOption(ChoiceField::OPTION_ALLOW_MULTIPLE_CHOICES);
+        $areChoicesTranslatable = true === $field->getCustomOption(ChoiceField::OPTION_USE_TRANSLATABLE_CHOICES);
+        $isExpanded = true === $field->getCustomOption(ChoiceField::OPTION_RENDER_EXPANDED);
+        $isMultipleChoice = true === $field->getCustomOption(ChoiceField::OPTION_ALLOW_MULTIPLE_CHOICES);
 
         $choices = $this->getChoices($field->getCustomOption(ChoiceField::OPTION_CHOICES), $entityDto, $field);
-        if (empty($choices)) {
-            throw new \InvalidArgumentException(sprintf('The "%s" choice field must define its possible choices using the setChoices() method.', $field->getProperty()));
+
+        // using a more precise check like 'function_exists('enum_exists');' messes with IDEs like PhpStorm
+        $enumsAreSupported = \PHP_VERSION_ID >= 80100;
+        // if no choices are passed to the field, check if it's related to an Enum;
+        // in that case, get all the possible values of the Enum
+        if (null === $choices && $enumsAreSupported) {
+            $enumTypeClass = $field->getDoctrineMetadata()->get('enumType');
+            if (enum_exists($enumTypeClass)) {
+                $choices = $enumTypeClass::cases();
+            }
+        }
+
+        if (null === $choices) {
+            $choices = [];
+        }
+
+        // support for enums
+        if ($enumsAreSupported) {
+            $elementIsEnum = array_unique(array_map(static function ($element): bool {
+                return \is_object($element) && enum_exists($element::class);
+            }, $choices));
+            $allChoicesAreEnums = false === \in_array(false, $elementIsEnum, true);
+
+            if ($allChoicesAreEnums) {
+                $processedEnumChoices = [];
+                foreach ($choices as $choice) {
+                    if ($choice instanceof \BackedEnum) {
+                        $processedEnumChoices[$choice->name] = $choice->value;
+                    } else {
+                        $processedEnumChoices[$choice->name] = $choice->name;
+                    }
+                }
+
+                $choices = $processedEnumChoices;
+            }
         }
 
         if ($areChoicesTranslatable) {
@@ -60,7 +93,7 @@ final class ChoiceConfigurator implements FieldConfiguratorInterface
         $field->setFormTypeOptionIfNotSet('placeholder', '');
 
         // the value of this form option must be a string to properly propagate it as an HTML attribute value
-        $field->setFormTypeOption('attr.data-ea-autocomplete-render-items-as-html', $field->getCustomOption(ChoiceField::OPTION_ESCAPE_HTML_CONTENTS) ? 'false' : 'true');
+        $field->setFormTypeOption('attr.data-ea-autocomplete-render-items-as-html', true === $field->getCustomOption(ChoiceField::OPTION_ESCAPE_HTML_CONTENTS) ? 'false' : 'true');
 
         $fieldValue = $field->getValue();
         $isIndexOrDetail = \in_array($context->getCrud()->getCurrentPage(), [Crud::PAGE_INDEX, Crud::PAGE_DETAIL], true);
@@ -73,33 +106,33 @@ final class ChoiceConfigurator implements FieldConfiguratorInterface
 
         $translationParameters = $context->getI18n()->getTranslationParameters();
         $translationDomain = $context->getI18n()->getTranslationDomain();
-        $selectedChoices = [];
-        $flippedChoices = $areChoicesTranslatable ? $choices : array_flip($choices);
-        // $value is a scalar for single selections and an array for multiple selections
+        $choiceMessages = [];
+        // Translatable choice don't need to get flipped
+        $flippedChoices = $areChoicesTranslatable ? $choices : array_flip($this->flatten($choices));
         foreach ((array) $fieldValue as $selectedValue) {
-            if (null !== $selectedChoice = $flippedChoices[$selectedValue] ?? null) {
+            if (null !== $selectedLabel = $flippedChoices[$selectedValue] ?? null) {
                 if ($selectedValue instanceof TranslatableInterface) {
-                    $choiceValue = $selectedValue;
+                    $choiceMessage = $selectedValue;
                 } else {
-                    $choiceValue = t(
-                        $selectedChoice,
+                    $choiceMessage = t(
+                        $selectedLabel,
                         $translationParameters,
                         $translationDomain
                     );
                 }
-                $selectedChoices[] = new TranslatableChoiceMessage(
-                    $choiceValue,
+                $choiceMessages[] = new TranslatableChoiceMessage(
+                    $choiceMessage,
                     $isRenderedAsBadge ? $this->getBadgeCssClass($badgeSelector, $selectedValue, $field) : null
                 );
             }
         }
-        $field->setFormattedValue(new TranslatableChoiceMessageCollection($selectedChoices, $isRenderedAsBadge));
+        $field->setFormattedValue(new TranslatableChoiceMessageCollection($choiceMessages, $isRenderedAsBadge));
     }
 
-    private function getChoices($choiceGenerator, EntityDto $entity, FieldDto $field): array
+    private function getChoices($choiceGenerator, EntityDto $entity, FieldDto $field): array|null
     {
         if (null === $choiceGenerator) {
-            return [];
+            return null;
         }
 
         if (\is_array($choiceGenerator)) {
@@ -113,6 +146,7 @@ final class ChoiceConfigurator implements FieldConfiguratorInterface
     {
         $commonBadgeCssClass = 'badge';
 
+        $badgeType = '';
         if (true === $badgeSelector) {
             $badgeType = 'badge-secondary';
         } elseif (\is_array($badgeSelector)) {
@@ -124,8 +158,24 @@ final class ChoiceConfigurator implements FieldConfiguratorInterface
             }
         }
 
-        $badgeTypeCssClass = empty($badgeType) ? '' : u($badgeType)->ensureStart('badge-')->toString();
+        $badgeTypeCssClass = (null === $badgeType || '' === $badgeType) ? '' : u($badgeType)->ensureStart('badge-')->toString();
 
         return $commonBadgeCssClass.' '.$badgeTypeCssClass;
+    }
+
+    private function flatten(array $choices): array
+    {
+        $flattened = [];
+
+        foreach ($choices as $label => $choice) {
+            // Flatten grouped choices
+            if (\is_array($choice)) {
+                $flattened = array_merge($flattened, $choice);
+            } else {
+                $flattened[$label] = $choice;
+            }
+        }
+
+        return $flattened;
     }
 }

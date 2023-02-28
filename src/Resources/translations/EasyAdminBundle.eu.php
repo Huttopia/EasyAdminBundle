@@ -29,7 +29,6 @@ return [
         'false' => 'Ez',
         'empty' => 'Hutsik',
         'null' => 'Nulu',
-        'nullable_field' => 'Hutsik utzi',
         'object' => 'PHP Objektua',
         'inaccessible' => 'Helezina',
         'inaccessible.explanation' => 'Eremu honek ez du getter metodo bat edo honi loturiko propietatea ez da publikoa',
@@ -110,6 +109,16 @@ return [
         'anonymous' => 'Erabiltzaile anonimoa',
         'sign_out' => 'Amaitu saioa',
         'exit_impersonation' => 'Amaitu inpersonazioa',
+    ],
+
+    'settings' => [
+        'appearance' => [
+            'label' => 'Itxura',
+            'light' => 'Argia',
+            'dark' => 'Iluna',
+            'auto' => 'Automatikoa',
+        ],
+        'locale' => 'Hizkuntza',
     ],
 
     'login_page' => [

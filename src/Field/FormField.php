@@ -38,6 +38,7 @@ final class FormField implements FieldInterface
     public static function addPanel($label = false, ?string $icon = null): self
     {
         $field = new self();
+        $icon = $field->fixIconFormat($icon, 'FormField::addPanel()');
 
         return $field
             ->setFieldFqcn(__CLASS__)
@@ -49,7 +50,8 @@ final class FormField implements FieldInterface
             ->setFormTypeOptions(['mapped' => false, 'required' => false])
             ->setCustomOption(self::OPTION_ICON, $icon)
             ->setCustomOption(self::OPTION_COLLAPSIBLE, false)
-            ->setCustomOption(self::OPTION_COLLAPSED, false);
+            ->setCustomOption(self::OPTION_COLLAPSED, false)
+            ->setValue(true);
     }
 
     /**
@@ -72,7 +74,8 @@ final class FormField implements FieldInterface
             ->setFormType(EaFormRowType::class)
             ->addCssClass('field-form_row')
             ->setFormTypeOptions(['mapped' => false, 'required' => false])
-            ->setCustomOption(self::OPTION_ROW_BREAKPOINT, $breakpointName);
+            ->setCustomOption(self::OPTION_ROW_BREAKPOINT, $breakpointName)
+            ->setValue(true);
     }
 
     /**
@@ -81,21 +84,23 @@ final class FormField implements FieldInterface
     public static function addTab(TranslatableInterface|string $label, ?string $icon = null): self
     {
         $field = new self();
+        $icon = $field->fixIconFormat($icon, 'FormField::addTab()');
 
         return $field
             ->setFieldFqcn(__CLASS__)
             ->hideOnIndex()
-            ->hideOnDetail()
             ->setProperty('ea_form_tab_'.(new Ulid()))
             ->setLabel($label)
             ->setFormType(EasyAdminTabType::class)
             ->addCssClass('field-form_tab')
             ->setFormTypeOptions(['mapped' => false, 'required' => false])
-            ->setCustomOption(self::OPTION_ICON, $icon);
+            ->setCustomOption(self::OPTION_ICON, $icon)
+            ->setValue(true);
     }
 
     public function setIcon(string $iconCssClass): self
     {
+        $iconCssClass = $this->fixIconFormat($iconCssClass, 'FormField::setIcon()');
         $this->setCustomOption(self::OPTION_ICON, $iconCssClass);
 
         return $this;
@@ -129,5 +134,20 @@ final class FormField implements FieldInterface
         // don't use empty() because the label can contain only white spaces (it's a valid edge-case)
         return (null !== $this->dto->getLabel() && '' !== $this->dto->getLabel())
             || null !== $this->dto->getCustomOption(self::OPTION_ICON);
+    }
+
+    private function fixIconFormat(?string $icon, string $methodName): ?string
+    {
+        if (null === $icon) {
+            return $icon;
+        }
+
+        if (!str_contains($icon, 'fa-') && !str_contains($icon, 'far-') && !str_contains($icon, 'fab-')) {
+            trigger_deprecation('easycorp/easyadmin-bundle', '4.4.0', 'The value passed as the $icon argument in "%s" method must be the full FontAwesome CSS class of the icon. For example, if you passed "user" before, you now must pass "fa fa-user" (or any style variant like "fa fa-solid fa-user").', $methodName);
+
+            $icon = sprintf('fa fa-%s', $icon);
+        }
+
+        return $icon;
     }
 }

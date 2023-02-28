@@ -12,7 +12,7 @@ use Symfony\Component\Form\FormEvents;
  */
 class CrudAutocompleteSubscriber implements EventSubscriberInterface
 {
-    public static function getSubscribedEvents()
+    public static function getSubscribedEvents(): array
     {
         return [
             FormEvents::PRE_SET_DATA => 'preSetData',
@@ -23,7 +23,7 @@ class CrudAutocompleteSubscriber implements EventSubscriberInterface
     public function preSetData(FormEvent $event)
     {
         $form = $event->getForm();
-        $data = $event->getData() ?: [];
+        $data = $event->getData() ?? [];
 
         $options = $form->getConfig()->getOptions();
         $options['compound'] = false;

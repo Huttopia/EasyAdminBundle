@@ -1,8 +1,13 @@
-document.addEventListener('DOMContentLoaded', () => {
+import {toggleVisibilityClasses} from "./helpers";
+
+const eaFileUploadHandler = function (event) {
     document.querySelectorAll('.ea-fileupload input[type="file"]').forEach((fileUploadElement) => {
         new FileUploadField(fileUploadElement);
     });
-});
+}
+
+window.addEventListener('DOMContentLoaded', eaFileUploadHandler);
+document.addEventListener('ea.collection.item-added', eaFileUploadHandler);
 
 class FileUploadField {
     #fieldContainerElement;
@@ -11,7 +16,11 @@ class FileUploadField {
         this.field = field;
         this.#fieldContainerElement = this.field.closest('.ea-fileupload');
         this.field.addEventListener('change', this.#updateField.bind(this));
-        this.#getFieldDeleteButton().addEventListener('click', this.#resetField.bind(this));
+
+        let deleteButton = this.#getFieldDeleteButton();
+        if (deleteButton) {
+            deleteButton.addEventListener('click', this.#resetField.bind(this));
+        }
     }
 
     #updateField() {
@@ -46,7 +55,7 @@ class FileUploadField {
         }
         this.field.value = '';
         this.#getFieldCustomInput().innerHTML = '';
-        this.#getFieldDeleteButton().style.display = 'none';
+        toggleVisibilityClasses(this.#getFieldDeleteButton(), true);
 
         this.#getFieldSizeLabel().childNodes.forEach((fileSizeLabelChild) => {
             if (fileSizeLabelChild.nodeType === Node.TEXT_NODE) {
@@ -55,7 +64,7 @@ class FileUploadField {
         });
 
         if (null !== fieldListOfFiles) {
-            fieldListOfFiles.style.display = 'none';
+            toggleVisibilityClasses(fieldListOfFiles, true);
         }
     }
 

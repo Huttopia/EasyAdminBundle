@@ -29,7 +29,6 @@ return [
         'false' => 'No',
         'empty' => 'Vacío',
         'null' => 'Nulo',
-        'nullable_field' => 'Dejar vacío',
         'object' => 'Objecto PHP',
         'inaccessible' => 'Inaccesible',
         'inaccessible.explanation' => 'Este campo no tiene un método getter o la propiedad asociada no es pública',
@@ -101,6 +100,7 @@ return [
     'form' => [
         'are_you_sure' => 'No has guardado los cambios realizados en este formulario.',
         'tab.error_badge_title' => 'Hay un campo inválido|Hay %count% campos inválidos',
+        'slug.confirm_text' => 'Si cambias el slug, puedes romper enlaces en otras páginas.',
     ],
 
     'user' => [
@@ -118,6 +118,7 @@ return [
             'dark' => 'Oscuro',
             'auto' => 'Automático',
         ],
+        'locale' => 'Idioma',
     ],
 
     'login_page' => [

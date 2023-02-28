@@ -8,8 +8,11 @@ use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Contracts\Field\FieldConfiguratorInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\FieldDto;
+use EasyCorp\Bundle\EasyAdminBundle\Factory\EntityFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AvatarField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
+use Symfony\Component\PropertyAccess\Exception\AccessException;
+use Symfony\Component\PropertyAccess\Exception\UnexpectedTypeException;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use function Symfony\Component\String\u;
 use function Symfony\Component\Translation\t;
@@ -21,10 +24,12 @@ use Symfony\Contracts\Translation\TranslatableInterface;
 final class CommonPreConfigurator implements FieldConfiguratorInterface
 {
     private PropertyAccessorInterface $propertyAccessor;
+    private EntityFactory $entityFactory;
 
-    public function __construct(PropertyAccessorInterface $propertyAccessor)
+    public function __construct(PropertyAccessorInterface $propertyAccessor, EntityFactory $entityFactory)
     {
         $this->propertyAccessor = $propertyAccessor;
+        $this->entityFactory = $entityFactory;
     }
 
     public function supports(FieldDto $field, EntityDto $entityDto): bool
@@ -39,10 +44,18 @@ final class CommonPreConfigurator implements FieldConfiguratorInterface
 
         // if a field already has set a value, someone has written something to
         // it (as a virtual field or overwrite); don't modify the value in that case
-        if (null === $field->getValue()) {
-            $value = $this->buildValueOption($field, $entityDto);
+        $isReadable = true;
+        if (null === $value = $field->getValue()) {
+            try {
+                $value = null === $entityDto->getInstance() ? null : $this->propertyAccessor->getValue($entityDto->getInstance(), $field->getProperty());
+            } catch (AccessException|UnexpectedTypeException) {
+                $isReadable = false;
+            }
+
             $field->setValue($value);
-            $field->setFormattedValue($value);
+            if (null === $field->getFormattedValue()) {
+                $field->setFormattedValue($value);
+            }
         }
 
         $label = $this->buildLabelOption($field, $translationDomain, $context->getCrud()->getCurrentPage());
@@ -57,7 +70,7 @@ final class CommonPreConfigurator implements FieldConfiguratorInterface
         $isVirtual = $this->buildVirtualOption($field, $entityDto);
         $field->setVirtual($isVirtual);
 
-        $templatePath = $this->buildTemplatePathOption($context, $field, $entityDto);
+        $templatePath = $this->buildTemplatePathOption($context, $field, $entityDto, $isReadable);
         $field->setTemplatePath($templatePath);
 
         $doctrineMetadata = $entityDto->hasProperty($field->getProperty()) ? $entityDto->getPropertyMetadata($field->getProperty())->all() : [];
@@ -69,7 +82,7 @@ final class CommonPreConfigurator implements FieldConfiguratorInterface
             $field->setFormTypeOptionIfNotSet('help_html', true);
         }
 
-        if (!empty($field->getCssClass())) {
+        if ('' !== $field->getCssClass()) {
             $field->setFormTypeOptionIfNotSet('row_attr.class', $field->getCssClass());
         }
 
@@ -78,18 +91,6 @@ final class CommonPreConfigurator implements FieldConfiguratorInterface
         }
 
         $field->setFormTypeOptionIfNotSet('label', $field->getLabel());
-    }
-
-    private function buildValueOption(FieldDto $field, EntityDto $entityDto)
-    {
-        $entityInstance = $entityDto->getInstance();
-        $propertyName = $field->getProperty();
-
-        if (null === $entityInstance || !$this->propertyAccessor->isReadable($entityInstance, $propertyName)) {
-            return null;
-        }
-
-        return $this->propertyAccessor->getValue($entityInstance, $propertyName);
     }
 
     private function buildHelpOption(FieldDto $field, string $translationDomain): ?TranslatableInterface
@@ -115,7 +116,7 @@ final class CommonPreConfigurator implements FieldConfiguratorInterface
                 return $label;
             }
 
-            return empty($label) ? $label : t($label, $field->getTranslationParameters(), $translationDomain);
+            return (null === $label || false === $label || '' === $label) ? $label : t($label, $field->getTranslationParameters(), $translationDomain);
         }
 
         // if an Avatar field doesn't define its label, don't autogenerate it for the 'index' page
@@ -130,7 +131,7 @@ final class CommonPreConfigurator implements FieldConfiguratorInterface
             $label = $this->humanizeString($field->getProperty());
         }
 
-        if (empty($label)) {
+        if ('' === $label) {
             return $label;
         }
 
@@ -161,15 +162,14 @@ final class CommonPreConfigurator implements FieldConfiguratorInterface
         return !$entityDto->hasProperty($field->getProperty());
     }
 
-    private function buildTemplatePathOption(AdminContext $adminContext, FieldDto $field, EntityDto $entityDto): string
+    private function buildTemplatePathOption(AdminContext $adminContext, FieldDto $field, EntityDto $entityDto, bool $isReadable): string
     {
         if (null !== $templatePath = $field->getTemplatePath()) {
             return $templatePath;
         }
 
         // if field has a value set, don't display it as inaccessible (needed e.g. for virtual fields)
-        $isPropertyReadable = null !== $entityDto->getInstance() && $this->propertyAccessor->isReadable($entityDto->getInstance(), $field->getProperty());
-        if (!$isPropertyReadable && null === $field->getValue()) {
+        if (!$isReadable && null === $field->getValue()) {
             return $adminContext->getTemplatePath('label/inaccessible');
         }
 
@@ -195,8 +195,12 @@ final class CommonPreConfigurator implements FieldConfiguratorInterface
 
         // If at least one join column of an association field isn't nullable then the field is "required" by default, otherwise the field is optional
         if ($entityDto->isAssociation($field->getProperty())) {
+            $associatedEntityMetadata = $this->entityFactory->getEntityMetadata($doctrinePropertyMetadata->get('targetEntity'));
             foreach ($doctrinePropertyMetadata->get('joinColumns', []) as $joinColumn) {
-                if (\array_key_exists('nullable', $joinColumn) && false === $joinColumn['nullable']) {
+                $propertyNameInAssociatedEntity = $joinColumn['referencedColumnName'];
+                $associatedPropertyMetadata = $associatedEntityMetadata->fieldMappings[$propertyNameInAssociatedEntity] ?? [];
+                $isNullable = $associatedPropertyMetadata['nullable'] ?? true;
+                if (false === $isNullable) {
                     return true;
                 }
             }
@@ -210,7 +214,7 @@ final class CommonPreConfigurator implements FieldConfiguratorInterface
             return false;
         }
 
-        return !$doctrinePropertyMetadata->get('nullable');
+        return false === $doctrinePropertyMetadata->get('nullable');
     }
 
     private function humanizeString(string $string): string

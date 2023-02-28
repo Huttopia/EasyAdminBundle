@@ -2,7 +2,7 @@
 
 namespace EasyCorp\Bundle\EasyAdminBundle\Dto;
 
-use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
+use EasyCorp\Bundle\EasyAdminBundle\Contracts\Menu\MenuItemInterface;
 
 /**
  * @author Javier Eguiluz <javier.eguiluz@gmail.com>
@@ -13,7 +13,7 @@ final class UserMenuDto
     private bool $displayAvatar = true;
     private ?string $name = null;
     private ?string $avatarUrl = null;
-    /** @var MenuItem[] */
+    /** @var MenuItemDto[] */
     private array $items = [];
 
     public function isNameDisplayed(): bool
@@ -56,16 +56,17 @@ final class UserMenuDto
         $this->avatarUrl = $url;
     }
 
-    /**
-     * @return MenuItem[]
-     */
     public function getItems(): array
     {
         return $this->items;
     }
 
     /**
-     * @param MenuItemDto[] $items
+     * When configuring the application, you are passed an array of
+     * MenuItemInterface objects; after building the user menu contents,
+     * this method is called with MenuItemDto objects.
+     *
+     * @param MenuItemInterface[]|MenuItemDto[] $items
      */
     public function setItems(array $items): void
     {

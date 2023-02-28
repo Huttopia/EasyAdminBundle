@@ -29,7 +29,6 @@ return [
         'false' => 'لا',
         'empty' => 'فارغ',
         'null' => 'لا شيء',
-        'nullable_field' => 'اتركه فارغ',
         'object' => 'Objet PHP',
         'inaccessible' => 'لا يمكن الوصول إليها',
         'inaccessible.explanation' => 'لا يوجد وصف الوصول لهذه الخاصية أو أنها ليست عامة.',
@@ -101,6 +100,7 @@ return [
     'form' => [
         'are_you_sure' => 'لم يتّم حفظ التغييرات.',
         'tab.error_badge_title' => 'حقل واحد غير صالح|%count% حقول غير صالحة',
+        'slug.confirm_text' => 'إذا قمت بتغيير الرابط الثابت ، يمكنك تعطيل الروابط الموجودة في الصفحات الأخرى.',
     ],
 
     'user' => [
@@ -118,6 +118,7 @@ return [
             'dark' => 'الداكن',
             'auto' => 'تلقائي',
         ],
+        'locale' => 'لغة',
     ],
 
     'login_page' => [
@@ -137,7 +138,7 @@ return [
 
     'autocomplete' => [
         'no-results-found' => 'لم يتم العثور على أي نتائج',
-        // 'no-more-results' => 'No more results',
+        'no-more-results' => 'لا يوجد نتائج أٌخرى',
         'loading-more-results' => 'جاري تحميل نتائج إضافية…',
     ],
 ];

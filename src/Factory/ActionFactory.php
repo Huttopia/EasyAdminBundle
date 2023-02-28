@@ -117,7 +117,7 @@ final class ActionFactory
                 $actionDto->getTranslationParameters()
             );
             $label = $actionDto->getLabel();
-            $translatableActionLabel = empty($label) ? $label : t($label, $translationParameters, $translationDomain);
+            $translatableActionLabel = (null === $label || '' === $label) ? $label : t($label, $translationParameters, $translationDomain);
             $actionDto->setLabel($translatableActionLabel);
         } else {
             $actionDto->setLabel(TranslatableMessageBuilder::withParameters($actionDto->getLabel(), $defaultTranslationParameters));
@@ -144,7 +144,7 @@ final class ActionFactory
             $actionDto->addHtmlAttributes([
                 'data-bs-toggle' => 'modal',
                 'data-bs-target' => '#modal-batch-action',
-                'data-action-csrf-token' => $this->csrfTokenManager ? $this->csrfTokenManager->getToken('ea-batch-action-'.$actionDto->getName()) : null,
+                'data-action-csrf-token' => $this->csrfTokenManager?->getToken('ea-batch-action-'.$actionDto->getName()),
                 'data-action-batch' => 'true',
                 'data-entity-fqcn' => $adminContext->getCrud()->getEntityFqcn(),
                 'data-action-url' => $actionDto->getLinkUrl(),
@@ -170,7 +170,7 @@ final class ActionFactory
                 $routeParameters = $routeParameters($entityInstance);
             }
 
-            return $this->adminUrlGenerator->unsetAllExcept(EA::MENU_INDEX, EA::SUBMENU_INDEX)->includeReferrer()->setRoute($routeName, $routeParameters)->generateUrl();
+            return $this->adminUrlGenerator->unsetAll()->includeReferrer()->setRoute($routeName, $routeParameters)->generateUrl();
         }
 
         $requestParameters = [
@@ -185,7 +185,7 @@ final class ActionFactory
             $requestParameters[EA::ENTITY_ID] = $entityDto->getPrimaryKeyValueAsString();
         }
 
-        return $this->adminUrlGenerator->unsetAllExcept(EA::MENU_INDEX, EA::SUBMENU_INDEX, EA::FILTERS, EA::PAGE)->setAll($requestParameters)->generateUrl();
+        return $this->adminUrlGenerator->unsetAllExcept(EA::FILTERS, EA::PAGE)->setAll($requestParameters)->generateUrl();
     }
 
     private function generateReferrerUrl(Request $request, ActionDto $actionDto, string $currentAction): ?string

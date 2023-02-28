@@ -98,20 +98,6 @@
                     {% endif %}
                 {% if has_input_groups %}</div>{% endif %}
 
-                {% set nullable_fields_fqcn = [
-                    'EasyCorp\\Bundle\\EasyAdminBundle\\Field\\DateTimeField',
-                    'EasyCorp\\Bundle\\EasyAdminBundle\\Field\\DateField',
-                    'EasyCorp\\Bundle\\EasyAdminBundle\\Field\\TimeField',
-                ] %}
-                {% if form.vars.ea_crud_form.ea_field.fieldFqcn|default(false) in nullable_fields_fqcn and not form.vars.ea_crud_form.ea_field.formTypeOptions.required %}
-                    <div class="nullable-control">
-                        <label>
-                            <input type="checkbox" {% if ea.crud.currentAction == 'edit' and data is null and valid %}checked="checked"{% endif %}>
-                            {{ 'label.nullable_field'|trans({}, 'EasyAdminBundle')}}
-                        </label>
-                    </div>
-                {% endif %}
-
                 {% if ea.field.help ?? false %}
                     <small class="form-help">{{ ea.field.help|raw }}</small>
                 {% elseif form.vars.help ?? false %}
@@ -180,7 +166,7 @@
         {% set attr = attr|merge({'data-empty-collection': block('empty_collection') }) %}
     {% endif %}
 
-    {% if allow_add|default(false) %}
+    {% if allow_add|default(false) and not disabled %}
         <button type="button" class="btn btn-link field-collection-add-button">
             <i class="fa fa-plus pr-1"></i>
             {{ 'action.add_new_item'|trans({}, 'EasyAdminBundle') }}
@@ -203,7 +189,7 @@
     <div class="field-collection-item {{ is_complex ? 'field-collection-item-complex' }}">
         {% if is_array_field|default(false) %}
             {{ form_widget(form) }}
-            {% if allows_deleting_items %}
+            {% if allows_deleting_items and not disabled %}
                 {{ delete_item_button }}
             {% endif %}
         {% else %}
@@ -214,7 +200,7 @@
                         {{ value|ea_as_string }}
                     </button>
 
-                    {% if allows_deleting_items %}
+                    {% if allows_deleting_items and not disabled %}
                         {{ delete_item_button }}
                     {% endif %}
                 </h2>
@@ -344,7 +330,7 @@
             </div>
 
             {% if form.delete is defined %}
-                {{ form_row(form.delete, { label: 'vich_uploader.form_label.delete_confirm'|trans({}, 'VichUploaderBundle') }) }}
+                {{ form_row(form.delete) }}
             {% endif %}
         </div>
         <div class="small" id="{{ form.file.vars.id }}_new_file_name"></div>
@@ -404,7 +390,7 @@
             </div>
 
             {% if form.delete is defined %}
-                {{ form_row(form.delete, { label: 'vich_uploader.form_label.delete_confirm'|trans({}, 'VichUploaderBundle') }) }}
+                {{ form_row(form.delete) }}
             {% endif %}
         </div>
         <div class="small" id="{{ form.file.vars.id }}_new_file_name"></div>
@@ -425,7 +411,7 @@
                         <li class="nav-item">
                             <a class="nav-link {% if tab_config.active %}active{% endif %}" href="#{{ tab_config['id'] }}" id="{{ tab_config['id'] }}-tab" data-bs-toggle="tab">
                                 {%- if tab_config.icon|default(false) -%}
-                                    <i class="fa fa-fw fa-{{ tab_config.icon }}"></i>
+                                    <i class="fa-fw {{ tab_config.icon }}"></i>
                                 {%- endif -%}
                                 {{ tab_config['label']|trans(domain = ea.i18n.translationDomain) }}
                                 {%- if tab_config.errors > 0 -%}
@@ -448,9 +434,18 @@
 
                             <div class="row">
                                 {% if tab_name is defined and tab_name %}
-                                    {% for field in form|filter(field => not ea_crud_form.form_panels|filter((panel_config, form_panel) => form_panel == field.vars.ea_crud_form.form_panel) and field.vars.ea_crud_form.form_tab == tab_name) %}
-                                        {{ form_row(field) }}
-                                    {% endfor %}
+                                    {% macro recursiveTabForm(form, ea_crud_form, tab_name) %}
+                                        {% for field in form|filter(field => not ea_crud_form.form_panels|filter((panel_config, form_panel) => form_panel == field.vars.ea_crud_form.form_panel) and ((field.vars.ea_crud_form.form_tab is defined and field.vars.ea_crud_form.form_tab == tab_name) or field.vars.ea_crud_form.form_tabs is defined)) %}
+                                            {% if field.vars.ea_crud_form.form_tabs is defined %}
+                                                {# If the field is a nested CRUD form then only render its children #}
+                                                {{ _self.recursiveTabForm(field, ea_crud_form, tab_name) }}
+                                            {% else %}
+                                                {# Render all other fields #}
+                                                {{ form_row(field) }}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endmacro %}
+                                    {{ _self.recursiveTabForm(form, ea_crud_form, tab_name) }}
                                 {% endif %}
                                 {{ block('ea_crud_widget_panels') }}
                             </div>
@@ -513,9 +508,18 @@
             </div>
         </div>
     {% else %}
-        {% for field in form|filter(field => 'hidden' not in field.vars.block_prefixes and not field.vars.ea_crud_form.form_tab) %}
-            {{ form_row(field) }}
-        {% endfor %}
+        {% macro recursivePanelForm(form) %}
+            {% for field in form|filter(field => 'hidden' not in field.vars.block_prefixes and ((field.vars.ea_crud_form.form_tab is defined and not field.vars.ea_crud_form.form_tab) or field.vars.ea_crud_form.form_tabs is defined)) %}
+                {% if field.vars.ea_crud_form.form_tabs is defined %}
+                    {# If the field is a nested CRUD form then only render its children #}
+                    {{ _self.recursivePanelForm(field) }}
+                {% else %}
+                    {# Render all other fields #}
+                    {{ form_row(field) }}
+                {% endif %}
+            {% endfor %}
+        {% endmacro %}
+        {{ _self.recursivePanelForm(form) }}
     {% endfor %}
 {% endblock ea_crud_widget_panels %}
 
@@ -544,8 +548,7 @@
 {# EasyAdmin's TextEditor form type #}
 {% block ea_text_editor_widget %}
     {{ form_widget(form, { attr: attr|merge({
-        style: 'display: none',
-        class: 'ea-text-editor-content',
+        class: 'ea-text-editor-content d-none',
         'data-number-of-rows': form.vars.ea_crud_form.ea_field.customOptions.get('numOfRows')|default(5),
         'data-trix-editor-config': form.vars.ea_crud_form.ea_field.customOptions.get('trixEditorConfig')|default(null)|json_encode,
     }) }) }}
@@ -605,7 +608,7 @@
     <div class="form-widget-compound">
         {{ form_row(form.comparison) }}
         {{ form_row(form.value) }}
-        <div data-ea-value2-of-comparison-id="{{ form.comparison.vars.id }}" {% if form.comparison.vars.value != 'between' %}style="display: none"{% endif %}>
+        <div data-ea-value2-of-comparison-id="{{ form.comparison.vars.id }}" class="{{ form.comparison.vars.value != 'between' ? 'd-none' }}">
             {{ form_row(form.value2) }}
         </div>
     </div>
@@ -631,7 +634,7 @@
                 {% endif %}
             {% endif %}
             <div class="custom-file">
-                {{ form_widget(form.file, { attr: form.file.vars.attr|merge({ placeholder: placeholder, title: title, 'data-files-label': filesLabel, style: 'display: none' }) }) }}
+                {{ form_widget(form.file, { attr: form.file.vars.attr|merge({ placeholder: placeholder, title: title, 'data-files-label': filesLabel, class: 'd-none' }) }) }}
                 {{ form_label(form.file, placeholder, { label_attr: { class: 'custom-file-label' }}) }}
             </div>
             <div class="input-group-text">
@@ -643,7 +646,7 @@
                     {% endif %}
                 {%- endif -%}
                 {% if allow_delete %}
-                    <label class="btn ea-fileupload-delete-btn" {% if currentFiles is empty %}style="display: none"{% endif %} for="{{ form.delete.vars.id }}">
+                    <label class="btn ea-fileupload-delete-btn {{ currentFiles is empty ? 'd-none' }}" for="{{ form.delete.vars.id }}">
                         <i class="fa fa-trash-o"></i>
                     </label>
                 {% endif %}
@@ -673,7 +676,7 @@
             </div>
         {% endif %}
         {% if allow_delete %}
-            <div style="display: none">{{ form_widget(form.delete, { label: false }) }}</div>
+            <div class="d-none">{{ form_widget(form.delete, { label: false }) }}</div>
         {% endif %}
     </div>
     {{ form_errors(form.file) }}
@@ -740,7 +743,7 @@
             </div>
         {% endif %}
         {% if allow_delete %}
-            <div style="display: none">{{ form_widget(form.delete, { label: false }) }}</div>
+            <div class="d-none">{{ form_widget(form.delete, { label: false }) }}</div>
         {% endif %}
     </div>
 
@@ -750,7 +753,7 @@
 {% block ea_slug_widget %}
     {% set attr = attr|merge({
         'data-ea-slug-field': '',
-        'data-target': form.parent.children[target].vars.id
+        'data-target': target|split('|')|map(name => form.parent.children[name].vars.id)|json_encode
     }) %}
     {% if attr['data-confirm-text'] is defined %}
         {% set attr = attr|merge({

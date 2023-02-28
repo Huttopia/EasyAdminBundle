@@ -10,6 +10,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Dto\CrudDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\DashboardDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\I18nDto;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\LocaleDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\MainMenuDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\UserMenuDto;
@@ -137,6 +138,14 @@ final class AdminContext
         return $this->dashboardDto->isDarkModeEnabled();
     }
 
+    /**
+     * @return LocaleDto[]
+     */
+    public function getDashboardLocales(): array
+    {
+        return $this->dashboardDto->getLocales();
+    }
+
     public function getMainMenu(): MainMenuDto
     {
         if (null !== $this->mainMenuDto) {
@@ -145,10 +154,8 @@ final class AdminContext
 
         $configuredMenuItems = $this->dashboardControllerInstance->configureMenuItems();
         $mainMenuItems = \is_array($configuredMenuItems) ? $configuredMenuItems : iterator_to_array($configuredMenuItems, false);
-        $selectedMenuIndex = $this->request->query->getInt(EA::MENU_INDEX, -1);
-        $selectedMenuSubIndex = $this->request->query->getInt(EA::SUBMENU_INDEX, -1);
 
-        return $this->mainMenuDto = $this->menuFactory->createMainMenu($mainMenuItems, $selectedMenuIndex, $selectedMenuSubIndex);
+        return $this->mainMenuDto = $this->menuFactory->createMainMenu($mainMenuItems);
     }
 
     public function getUserMenu(): UserMenuDto

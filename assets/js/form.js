@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
 class Form {
     constructor() {
         this.#createUnsavedFormChangesWarning();
-        this.#createNullableFields();
         this.#createFieldsWithErrors();
         this.#preventMultipleFormSubmission();
     }
@@ -22,27 +21,6 @@ class Form {
             // although DirtyForm supports passing a custom message to display,
             // modern browsers don't allow to display custom messages to protect users
             new DirtyForm(form);
-        });
-    }
-
-    #createNullableFields() {
-        const updateNullableControlStatus = (checkbox) => {
-            const formFieldIsNull = checkbox.checked;
-            checkbox.closest('.form-group').querySelectorAll('select, input[type="date"], input[type="time"], input[type="datetime-local"]').forEach((dateTimeHtmlElement) => {
-                dateTimeHtmlElement.disabled = formFieldIsNull;
-                const dateTimeWidget = dateTimeHtmlElement.closest('.datetime-widget');
-                if (null !== dateTimeWidget) {
-                    dateTimeWidget.style.display = formFieldIsNull ? 'none' : 'block';
-                }
-            });
-        };
-
-        document.querySelectorAll('.nullable-control input[type="checkbox"]').forEach((checkbox) => {
-            updateNullableControlStatus(checkbox);
-
-            checkbox.addEventListener('change', () => {
-                updateNullableControlStatus(checkbox);
-            });
         });
     }
 
@@ -64,33 +42,41 @@ class Form {
                         badge.parentElement.removeChild(badge);
                     });
 
+                    if (null !== form.getAttribute('novalidate')) {
+                        return;
+                    }
+
                     form.querySelectorAll('input,select,textarea').forEach( (input) => {
-                        if (!input.validity.valid) {
+                        if (!input.disabled && !input.validity.valid) {
                             formHasErrors = true;
 
                             // Visual feedback for tabs
                             // Adding a badge with a error count next to the tab label
                             const formTab = input.closest('div.tab-pane');
                             if (formTab) {
-                                const navLinkTab = document.querySelector(`#${ formTab.id }-tab`);
-                                const badge = navLinkTab.querySelector('.badge');
-                                if (badge) {
-                                    // Increment number of error
-                                    badge.textContent = (parseInt(badge.textContent) + 1).toString();
-                                } else {
-                                    // Create a new badge
-                                    let newErrorBadge = document.createElement('span');
-                                    newErrorBadge.classList.add('badge', 'badge-danger');
-                                    newErrorBadge.title = 'form.tab.error_badge_title';
-                                    newErrorBadge.textContent = '1';
-                                    navLinkTab.appendChild(newErrorBadge);
-                                }
-                                navLinkTab.addEventListener('click', function onFormNavLinkTabClick() {
-                                    navLinkTab.querySelectorAll('.badge-danger.badge').forEach( (badge) => {
-                                        badge.parentElement.removeChild(badge);
+                                // Match tab link either by "data-bs-target" attribute or by href linking to the id anchor
+                                const navLinkTab = document.querySelector(`[data-bs-target="#${ formTab.id }"], a[href="#${ formTab.id }"]`);
+
+                                if (navLinkTab) {
+                                    const badge = navLinkTab.querySelector('.badge');
+                                    if (badge) {
+                                        // Increment number of error
+                                        badge.textContent = (parseInt(badge.textContent) + 1).toString();
+                                    } else {
+                                        // Create a new badge
+                                        let newErrorBadge = document.createElement('span');
+                                        newErrorBadge.classList.add('badge', 'badge-danger');
+                                        newErrorBadge.title = 'form.tab.error_badge_title';
+                                        newErrorBadge.textContent = '1';
+                                        navLinkTab.appendChild(newErrorBadge);
+                                    }
+                                    navLinkTab.addEventListener('click', function onFormNavLinkTabClick() {
+                                        navLinkTab.querySelectorAll('.badge-danger.badge').forEach( (badge) => {
+                                            badge.parentElement.removeChild(badge);
+                                        });
+                                        navLinkTab.removeEventListener('click', onFormNavLinkTabClick);
                                     });
-                                    navLinkTab.removeEventListener('click', onFormNavLinkTabClick);
-                                });
+                                }
                             }
 
                             // Visual feedback for group

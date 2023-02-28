@@ -29,7 +29,6 @@ return [
         'false' => 'No',
         'empty' => 'Vuoto',
         'null' => 'Null',
-        'nullable_field' => 'Lascia vuoto',
         'object' => 'Oggetto PHP',
         'inaccessible' => 'Inaccessibile',
         'inaccessible.explanation' => 'Il metodo getter non esiste per questo campo o la proprietà non è pubblica',
@@ -109,6 +108,16 @@ return [
         'anonymous' => 'Utente anonimo',
         'sign_out' => 'Esci',
         'exit_impersonation' => 'Esci dall\'impersonazione',
+    ],
+
+    'settings' => [
+        'locale' => 'Lingua',
+        'appearance' => [
+            'label' => 'Aspetto',
+            'light' => 'Chiaro',
+            'dark' => 'Scuro',
+            'auto' => 'Auto',
+        ],
     ],
 
     'login_page' => [

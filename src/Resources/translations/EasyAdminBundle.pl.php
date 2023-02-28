@@ -7,7 +7,7 @@ return [
         'edit' => '%entity_label_singular%',
         'index' => '%entity_label_plural%',
         'new' => 'Dodaj nowy %entity_label_singular%',
-        'exception' => 'Błąd|Błędy',
+        'exception' => 'Błąd|Błędy|Błędy',
     ],
 
     'datagrid' => [
@@ -29,7 +29,6 @@ return [
         'false' => 'Nie',
         'empty' => 'Pusty',
         'null' => 'Brak',
-        'nullable_field' => 'Zostaw niewypełnione',
         'object' => 'Obiekt PHP',
         'inaccessible' => 'Niedostępny',
         'inaccessible.explanation' => 'Metoda pobierająca (<i>ang. getter</i>) nie istnieje  dla tego pola lub właściwość (<i>ang. field</i>) nie jest publiczna',
@@ -100,7 +99,7 @@ return [
 
     'form' => [
         'are_you_sure' => 'Nie zapisano zmian wprowadzonych w tym formularzu.',
-        'tab.error_badge_title' => 'Wystąpił jeden błąd|Ilość błędów: %count%',
+        'tab.error_badge_title' => 'Wystąpił jeden błąd|Wystąpiły %count% błędy|Wystąpiło %count% błędów',
         'slug.confirm_text' => 'Jeśli zmienisz slug, linki mogą przestać działać na innych stronach.',
     ],
 
@@ -119,6 +118,7 @@ return [
             'dark' => 'Ciemny',
             'auto' => 'Automatyczny',
         ],
+        'locale' => 'Język',
     ],
 
     'login_page' => [

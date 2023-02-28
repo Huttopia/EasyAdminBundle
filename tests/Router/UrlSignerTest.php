@@ -11,6 +11,7 @@ class UrlSignerTest extends TestCase
 
     /**
      * @dataProvider provideSignData
+     *
      * @group legacy
      */
     public function testSign(string $url, string $expectedResult)
@@ -22,6 +23,7 @@ class UrlSignerTest extends TestCase
 
     /**
      * @dataProvider provideCheckData
+     *
      * @group legacy
      */
     public function testCheck(string $url, bool $expectedResult)
@@ -31,7 +33,7 @@ class UrlSignerTest extends TestCase
         $this->assertSame($expectedResult, $urlSigner->check($url));
     }
 
-    public function provideSignData()
+    public static function provideSignData()
     {
         // the host/user/pass/port URL parts don't affect the signature
         yield ['https://example.com/', 'https://example.com/?signature=bS2fxhAzf4E6G4WGnsIUEplAhgVDrQQwjYc1f2wBM_Y'];
