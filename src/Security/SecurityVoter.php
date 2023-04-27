@@ -59,7 +59,7 @@ final class SecurityVoter extends Voter
     private function voteOnViewMenuItemPermission(MenuItemDto $menuItemDto): bool
     {
         // users can see the menu item if they have the permission required by the menu item
-        if (empty($menuItemDto->getPermissions())) {
+        if (0 === \count($menuItemDto->getPermissions())) {
             return true;
         }
 
